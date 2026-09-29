@@ -1,0 +1,84 @@
+/* The benchmark's page is Bootstrap: a jumbotron of paired buttons over a
+   striped, hoverable table. Reproduced here from the preset's own tokens, so
+   the shape is the published one and the palette is this terminal's. */
+
+[data-screen="main"] .container {
+  max-width: 60rem;
+  margin-inline: auto;
+  padding: var(--sp-md);
+}
+
+[data-screen="main"] .jumbotron {
+  background: var(--surface-muted);
+  border-radius: var(--r-md);
+  padding: var(--sp-lg);
+  margin-bottom: var(--sp-lg);
+}
+[data-screen="main"] .jumbotron h1 { margin: 0; }
+
+[data-screen="main"] .row { display: flex; flex-wrap: wrap; align-items: center; }
+/* The grid columns carry their own padding, so their 50% has to include it or
+   two of them no longer fit on one line. */
+[data-screen="main"] [class^="col-"], [data-screen="main"] [class*=" col-"] { box-sizing: border-box; }
+[data-screen="main"] .col-md-6,
+[data-screen="main"] .col-sm-6 { flex: 0 0 50%; max-width: 50%; }
+[data-screen="main"] .smallpad { padding: 4px; }
+
+[data-screen="main"] .btn {
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  padding: var(--sp-sm) var(--sp-md);
+  cursor: pointer;
+  font: inherit;
+}
+[data-screen="main"] .btn-primary { background: var(--accent); color: var(--surface); }
+[data-screen="main"] .btn-primary:hover { filter: brightness(0.92); }
+[data-screen="main"] .btn-block { display: block; width: 100%; }
+[data-screen="main"] .col-sm-6 form { margin: 0; }
+
+[data-screen="main"] table.test-data {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+[data-screen="main"] .test-data td {
+  padding: var(--sp-sm);
+  border-top: 1px solid var(--border);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-screen="main"] .table-striped tr:nth-of-type(odd) {
+  background: color-mix(in srgb, var(--primary) 4%, transparent);
+}
+[data-screen="main"] .table-hover tr:hover {
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+/* The preset's enter and exit slots, rebound to no motion (ir decision-07). */
+[data-screen="main"] tr[data-id][data-enter],
+[data-screen="main"] tr[data-id][data-exit] { animation: none; }
+
+/* The selected row. The benchmark names this class; the reduce writes it. */
+[data-screen="main"] tr.danger,
+[data-screen="main"] .table-striped tr.danger:nth-of-type(odd) {
+  background: color-mix(in srgb, var(--danger) 22%, transparent);
+}
+
+[data-screen="main"] .col-md-1 { width: 8%; }
+[data-screen="main"] .col-md-4 { width: 34%; }
+
+[data-screen="main"] a.lbl { color: var(--primary); cursor: pointer; }
+[data-screen="main"] a.lbl:hover { text-decoration: underline; }
+
+[data-screen="main"] button.remove {
+  border: 0;
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}
+[data-screen="main"] .glyphicon-remove::before { content: "✕"; }
+/* The benchmark's own element, kept so the page matches. Its purpose there is
+   to warm an icon font; the ✕ here is a text glyph and needs no warming. */
+[data-screen="main"] .preloadicon { position: absolute; left: -9999px; }

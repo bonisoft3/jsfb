@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jsfb — IR</title>
+<meta name="pronto-ir-version" content="alpha">
+<meta name="pronto-source" content="brief.md">
+<meta name="pronto-brief-sha256" content="c03e4a30b2699ce56704cbca912951624d2a5f2f8806dd44971f2b651c167e97">
+<meta name="pronto-generated" content="2026-09-07">
+<meta name="pronto-compiler" content="claude-opus-5">
+<meta name="pronto-cluster" content="mecha (plugins/pronto/clusters/mecha.cue)">
+<meta name="pronto-terminal" content="omnishell (plugins/pronto/terminals/omnishell.cue)">
+<meta name="pronto-loop" content="sayt (plugins/pronto/loops/sayt.cue)">
+<meta name="pronto-build" content="bayt (plugins/pronto/builders/bayt.cue)">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"
+  integrity="sha384-rbtjAdnIQE/aQJGEgXrVUlMibdfTSa4PQju4HDhN3sR2PmaKFzhEafuePsl9H/9I"
+  crossorigin="anonymous"></script>
+<script>mermaid.initialize({startOnLoad: true, theme: "neutral"});</script>
+<style>
+  :root { color-scheme: light dark; }
+  body { max-width: 60rem; margin: 2rem auto; padding: 0 1rem;
+         font: 15px/1.55 -apple-system, "Segoe UI", sans-serif; }
+  h1, h2, h3 { line-height: 1.2; }
+  [data-kind="decision"] { border-left: 3px solid color-mix(in srgb, currentColor 30%, transparent);
+                           padding-left: 0.8rem; margin: 1rem 0; }
+  .invariant { border-left: 3px solid color-mix(in srgb, currentColor 30%, transparent);
+               padding-left: 0.8rem; margin: 1rem 0; }
+  code { font: 0.9em ui-monospace, monospace; }
+  code.cel { font: 0.85em/1.4 ui-monospace, monospace; padding: 0.05em 0.3em;
+             border-radius: 4px;
+             background: color-mix(in srgb, currentColor 8%, transparent); }
+  table { border-collapse: collapse; margin: 1rem 0; }
+  th { text-align: left; font-weight: 600; }
+  th, td { padding: 0.25rem 0.8rem 0.25rem 0;
+           border-bottom: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  table.timings td:nth-child(n+2) { text-align: right; font-variant-numeric: tabular-nums; }
+  figure { margin: 1rem 0; }
+  figure svg { border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+               border-radius: 6px; }
+  figcaption { font-size: 0.8rem; opacity: 0.75; max-width: 240px; }
+  .storyboard { display: flex; flex-wrap: wrap; gap: 1rem; }
+
+  /* Frame palette. The benchmark's Bootstrap page drawn in the press preset's
+     roles: an accent for the primary buttons, a muted surface for the
+     jumbotron, the danger tint for the selected row. */
+  .frames text { font: 10px ui-sans-serif, sans-serif; fill: #101010; }
+  .frames .h { font-size: 13px; font-weight: 700; }
+  .frames .muted { fill: #5C5C57; }
+  .frames .mono { font: 9px ui-monospace, monospace; }
+  .frames .mid { text-anchor: middle; }
+  .frames .btn-text { fill: #FFFFFF; font-size: 8px; font-weight: 600; }
+  .frames .danger-text { fill: #8A1C1C; }
+  .frames rect.page { fill: #FFFFFF; }
+  .frames rect.well { fill: #F4F4F2; stroke: #D6D6D1; }
+  .frames rect.btn { fill: #0B4FA2; }
+  .frames rect.danger { fill: #F6DADA; }
+  .frames rect.stripe { fill: #F7F7F5; }
+  .frames .rule { stroke: #D6D6D1; stroke-width: 1; }
+  .frames .dark text { fill: #F0F0EE; }
+  .frames .dark .muted { fill: #A6A69F; }
+  .frames .dark .danger-text { fill: #F0A0A0; }
+  .frames .dark rect.page { fill: #0E0E0E; }
+  .frames .dark rect.well { fill: #1A1A19; stroke: #3A3A36; }
+  .frames .dark rect.btn { fill: #3B7DD8; }
+  .frames .dark rect.danger { fill: #4A1E1E; }
+  .frames .dark rect.stripe { fill: #161615; }
+  .frames .dark .rule { stroke: #3A3A36; }
+</style>
+</head>
+<body>
+
+<h1>jsfb — the row operations, one at a time</h1>
+
+<p>This app is a reference. Every operation in it exists because it forces a
+different part of this terminal's write contract into the open, and the
+benchmark is what says whether the result is right.</p>
+
+<h2 id="overview">Overview</h2>
+
+<p>js-framework-benchmark's page, compiled from <a href="brief.md">brief.md</a>
+(pinned above) onto the mecha cluster, the omnishell terminal, the sayt loop
+and the bayt build graph. Two entities, one screen, nine operations. Both
+entities take the <code>tab</code> path: nothing is published, no migration is
+emitted, and the whole data plane is the terminal's in-memory collections. No
+pipeline, no handler beyond the one fold, no escape hatch
+(<a href="#decision-08">decision-08</a>), because a benchmark that reached
+outside the terminal would be measuring something else.</p>
+
+<p>The load-bearing idea is that <strong>every operation is one fold over the
+rows, and none of them is a form</strong>. The benchmark's six buttons and the
+two links in each row are the published markup's, and each click reaches the
+<code>bench</code> reduce carrying the row's id and the element's own DOM id
+and nothing else (<a href="#decision-03">decision-03</a>). The reduce answers
+with puts, patches and deletes, and the two regions — one over
+<a href="#Bench">Bench</a>, one over <a href="#Row">Row</a> — redraw what
+changed. The other two ideas are that position and selection are both columns
+(<a href="#decision-04">decision-04</a>, <a href="#decision-06">decision-06</a>),
+so a swap is two writes and a selection at most two, whatever the table's
+length.</p>
+
+<p>Because the operations are a function of the rows, they are checkable
+without a browser or a cluster: the loop's <code>ops</code> check drives the
+fold directly (<a href="#invariants">invariants</a>). The timings under
+<a href="#measures">what the benchmark measures</a> need a driver outside the
+page, and are the one thing here the ladder does not grade.</p>
+
+<div class="mermaid" id="architecture" data-kind="diagram">
+graph TD
+  Bench["Bench (tab)"] --> main
+  Row["Row (tab)"] --> main
+  main["main (screen: /)"] -- "a click on a button or a row" --> fold["the bench fold"]
+  fold -- "puts, patches, deletes" --> Row
+  fold -- "next_id, picked" --> Bench
+</div>
+
+<h2 id="entities">Entities</h2>
+
+<section id="Row" data-kind="entity" data-durability="tab" data-type-id="0xc75ee275aaa2d971">
+<h3>Row — tab</h3>
+<p>
+The table under test. A row is an id, a label of three words, its position,
+and the class it wears when selected. The id is the bench counter's value when
+the row was made, so ids climb for the life of the page and are never reused;
+the same counter is the row's place in the label walk
+(<a href="#decision-02">decision-02</a>) and its <code>ord</code>, so a new row
+always sorts after every row that exists. <code>ord</code> is what the region
+orders by, which is what lets Swap Rows be two rows exchanging it
+(<a href="#decision-04">decision-04</a>). <code>cls</code> is the literal class
+the benchmark's selected row wears, because a template binds a field and
+cannot compose one (<a href="#decision-06">decision-06</a>). Nothing is seeded:
+the page starts with no rows, as the benchmark's does.
+</p>
+<table data-extract="fields">
+<tr><th>field</th><th>type</th><th>constraint</th><th>notes</th></tr>
+<tr data-ordinal="1"><td>id</td><td>string</td><td><code class="cel">this.size() &lt;= 12</code></td><td>pk; the bench counter's value at creation, as decimal text</td></tr>
+<tr data-ordinal="2"><td>label</td><td>string</td><td><code class="cel">this.size() &gt;= 3 &amp;&amp; this.size() &lt;= 60</code></td><td>one adjective, one colour, one noun; Update every 10th appends <code>" !!!"</code></td></tr>
+<tr data-ordinal="3"><td>ord</td><td>int32</td><td><code class="cel">this &gt;= 0</code></td><td>the position the table draws the row at; a swap exchanges two of these</td></tr>
+<tr data-ordinal="4"><td>cls</td><td>string</td><td><code class="cel">this in ['', 'danger']</code></td><td>optional; <code>danger</code> on the selected row, the empty string on every other</td></tr>
+</table>
+</section>
+
+<section id="Bench" data-kind="entity" data-durability="tab" data-type-id="0xfd0708091405b292">
+<h3>Bench — tab</h3>
+<p>
+One row, seeded as <code>bench</code>, that the fold reads and settles on every
+operation that needs to remember something across clicks. <code>next_id</code>
+is the next id to hand out, so Create and Append never repeat one and a refill
+never has to keep clear of its own deletion
+(<a href="#decision-05">decision-05</a>). <code>picked</code> is which row wears
+the selection, so clearing the last one is a lookup and not a walk of the table
+(<a href="#decision-06">decision-06</a>). The screen's outer region is over
+this row, and the whole page is its item template — the jumbotron, the six
+buttons and the table are drawn once the seeded row arrives.
+</p>
+<table data-extract="fields">
+<tr><th>field</th><th>type</th><th>constraint</th><th>notes</th></tr>
+<tr data-ordinal="1"><td>id</td><td>string</td><td><code class="cel">this.size() &lt;= 8</code></td><td>pk; the one row is <code>bench</code></td></tr>
+<tr data-ordinal="2"><td>next_id</td><td>int32</td><td><code class="cel">this &gt;= 1</code></td><td>the next row id; advanced past what each Create or Append hands out</td></tr>
+<tr data-ordinal="3"><td>picked</td><td>string</td><td></td><td>optional; the id of the selected row, or the empty string</td></tr>
+</table>
+<p>Seed: <code>{id: "bench", next_id: 1, picked: ""}</code>.</p>
+</section>
+
+<h2 id="screens">Screens</h2>
+
+<section id="main" data-kind="screen" data-route="/">
+<h3>main — the benchmark's page</h3>
+<p data-extract="reads">Reads: <a href="#Bench">Bench</a> (filter
+<code>id=eq.bench</code>, order <code>id.asc</code>) as the outer region, whose
+one item is the page; <a href="#Row">Row</a> (order <code>ord.asc</code>) as
+the table nested inside it, one <code>&lt;tr&gt;</code> per row with the id in
+the first cell, the label as the <code>lbl</code> link in the second and the ✕
+as the <code>remove</code> link in the third. The table's empty text is the
+empty string: a table with no rows shows nothing under the buttons, as the
+benchmark's does. Both regions name <code>bench</code> as their handler and
+declare no mutation handler, because the fold answers clicks and nothing else
+(<a href="#decision-05">decision-05</a>).</p>
+<p data-extract="mutations">Mutations: no form — the program's
+<code>forms</code> is empty, so there is no form contract here. The control region is the
+benchmark's six buttons — <code>run</code>, <code>runlots</code>,
+<code>add</code>, <code>update</code>, <code>clear</code>,
+<code>swaprows</code> — each carrying its published id and a click binding to
+<code>bench</code>; the label link carries the row and the ✕ link carries the
+row in its own id, <code>rm-{id}</code>. Every one of the nine operations is one
+fold (<a href="#flows">flows</a>). Element ids, class names, the four-cell row
+and the captions are the published implementation's
+(<a href="#decision-01">decision-01</a>); the palette is the press preset's
+roles (<code>DESIGN.md</code>), and both of the preset's list keyframes are
+rebound to no animation (<a href="#decision-07">decision-07</a>).</p>
+<div class="storyboard frames">
+<figure id="main-loading" data-kind="state" data-of="main" data-state="loading">
+<svg viewBox="0 0 300 420" width="225"><g>
+<rect class="page" width="300" height="420"/>
+<text x="12" y="30" class="muted">Loading…</text>
+</g></svg>
+<figcaption>The region over Bench has not received its one row, and the page is that row's item template, so nothing is drawn yet.</figcaption>
+</figure>
+<figure id="main-empty" data-kind="state" data-of="main" data-state="empty">
+<svg viewBox="0 0 300 420" width="225"><g>
+<rect class="page" width="300" height="420"/>
+<rect class="well" x="12" y="12" width="276" height="96" rx="4"/>
+<text x="24" y="40" class="h">pronto/omnishell</text>
+<rect class="btn" x="150" y="22" width="62" height="14" rx="2"/><text class="mid btn-text" x="181" y="32">Create 1,000</text>
+<rect class="btn" x="218" y="22" width="62" height="14" rx="2"/><text class="mid btn-text" x="249" y="32">Create 10,000</text>
+<rect class="btn" x="150" y="42" width="62" height="14" rx="2"/><text class="mid btn-text" x="181" y="52">Append 1,000</text>
+<rect class="btn" x="218" y="42" width="62" height="14" rx="2"/><text class="mid btn-text" x="249" y="52">Update 10th</text>
+<rect class="btn" x="150" y="62" width="62" height="14" rx="2"/><text class="mid btn-text" x="181" y="72">Clear</text>
+<rect class="btn" x="218" y="62" width="62" height="14" rx="2"/><text class="mid btn-text" x="249" y="72">Swap Rows</text>
+</g></svg>
+<figcaption>The seeded bench row has arrived: the jumbotron and its six buttons. The table has no rows and no empty text, so there is nothing under them — the benchmark's page before the first click.</figcaption>
+</figure>
+<figure id="main-populated" data-kind="state" data-of="main" data-state="populated">
+<svg viewBox="0 0 300 420" width="225"><g>
+<rect class="page" width="300" height="420"/>
+<rect class="well" x="12" y="12" width="276" height="96" rx="4"/>
+<text x="24" y="40" class="h">pronto/omnishell</text>
+<rect class="btn" x="150" y="22" width="62" height="14" rx="2"/><text class="mid btn-text" x="181" y="32">Create 1,000</text>
+<rect class="btn" x="218" y="22" width="62" height="14" rx="2"/><text class="mid btn-text" x="249" y="32">Create 10,000</text>
+<rect class="btn" x="150" y="42" width="62" height="14" rx="2"/><text class="mid btn-text" x="181" y="52">Append 1,000</text>
+<rect class="btn" x="218" y="42" width="62" height="14" rx="2"/><text class="mid btn-text" x="249" y="52">Update 10th</text>
+<rect class="btn" x="150" y="62" width="62" height="14" rx="2"/><text class="mid btn-text" x="181" y="72">Clear</text>
+<rect class="btn" x="218" y="62" width="62" height="14" rx="2"/><text class="mid btn-text" x="249" y="72">Swap Rows</text>
+<rect class="stripe" x="12" y="122" width="276" height="16"/>
+<text x="16" y="133" class="mono">1</text><text x="40" y="133" class="mono">large brown car</text><text x="256" y="133" class="mono muted">✕</text>
+<line class="rule" x1="12" x2="288" y1="138" y2="138"/>
+<text x="16" y="149" class="mono">2</text><text x="40" y="149" class="mono">big green pizza</text><text x="256" y="149" class="mono muted">✕</text>
+<line class="rule" x1="12" x2="288" y1="154" y2="154"/>
+<rect class="stripe" x="12" y="154" width="276" height="16"/>
+<text x="16" y="165" class="mono">3</text><text x="40" y="165" class="mono">small orange house</text><text x="256" y="165" class="mono muted">✕</text>
+<line class="rule" x1="12" x2="288" y1="170" y2="170"/>
+<rect class="danger" x="12" y="170" width="276" height="16"/>
+<text x="16" y="181" class="mono danger-text">4</text><text x="40" y="181" class="mono danger-text">tall purple cookie</text><text x="256" y="181" class="mono danger-text">✕</text>
+<line class="rule" x1="12" x2="288" y1="186" y2="186"/>
+<rect class="stripe" x="12" y="186" width="276" height="16"/>
+<text x="16" y="197" class="mono">5</text><text x="40" y="197" class="mono">short blue keyboard</text><text x="256" y="197" class="mono muted">✕</text>
+<line class="rule" x1="12" x2="288" y1="202" y2="202"/>
+<text x="16" y="213" class="mono">6</text><text x="40" y="213" class="mono">long black desk</text><text x="256" y="213" class="mono muted">✕</text>
+<line class="rule" x1="12" x2="288" y1="218" y2="218"/>
+<rect class="stripe" x="12" y="218" width="276" height="16"/>
+<text x="16" y="229" class="mono">7</text><text x="40" y="229" class="mono">handsome brown burger</text><text x="256" y="229" class="mono muted">✕</text>
+<line class="rule" x1="12" x2="288" y1="234" y2="234"/>
+<text x="16" y="245" class="mono">8</text><text x="40" y="245" class="mono">plain yellow chair</text><text x="256" y="245" class="mono muted">✕</text>
+<line class="rule" x1="12" x2="288" y1="250" y2="250"/>
+<text x="16" y="270" class="muted">… 992 more</text>
+</g></svg>
+<figcaption>A thousand rows in ord order, striped and hoverable: the id, the label link, the ✕. The row whose id the bench row holds in <code>picked</code> wears <code>danger</code>.</figcaption>
+</figure>
+<figure id="main-populated-dark" data-kind="state" data-of="main" data-state="populated-dark">
+<svg viewBox="0 0 300 420" width="225"><g class="dark">
+<rect class="page" width="300" height="420"/>
+<rect class="well" x="12" y="12" width="276" height="96" rx="4"/>
+<text x="24" y="40" class="h">pronto/omnishell</text>
+<rect class="btn" x="150" y="22" width="62" height="14" rx="2"/><text class="mid btn-text" x="181" y="32">Create 1,000</text>
+<rect class="btn" x="218" y="22" width="62" height="14" rx="2"/><text class="mid btn-text" x="249" y="32">Create 10,000</text>
+<rect class="btn" x="150" y="42" width="62" height="14" rx="2"/><text class="mid btn-text" x="181" y="52">Append 1,000</text>
+<rect class="btn" x="218" y="42" width="62" height="14" rx="2"/><text class="mid btn-text" x="249" y="52">Update 10th</text>
+<rect class="btn" x="150" y="62" width="62" height="14" rx="2"/><text class="mid btn-text" x="181" y="72">Clear</text>
+<rect class="btn" x="218" y="62" width="62" height="14" rx="2"/><text class="mid btn-text" x="249" y="72">Swap Rows</text>
+<rect class="stripe" x="12" y="122" width="276" height="16"/>
+<text x="16" y="133" class="mono">1</text><text x="40" y="133" class="mono">large brown car</text><text x="256" y="133" class="mono muted">✕</text>
+<line class="rule" x1="12" x2="288" y1="138" y2="138"/>
+<text x="16" y="149" class="mono">2</text><text x="40" y="149" class="mono">big green pizza</text><text x="256" y="149" class="mono muted">✕</text>
+<line class="rule" x1="12" x2="288" y1="154" y2="154"/>
+<rect class="stripe" x="12" y="154" width="276" height="16"/>
+<text x="16" y="165" class="mono">3</text><text x="40" y="165" class="mono">small orange house</text><text x="256" y="165" class="mono muted">✕</text>
+<line class="rule" x1="12" x2="288" y1="170" y2="170"/>
+<rect class="danger" x="12" y="170" width="276" height="16"/>
+<text x="16" y="181" class="mono danger-text">4</text><text x="40" y="181" class="mono danger-text">tall purple cookie</text><text x="256" y="181" class="mono danger-text">✕</text>
+<line class="rule" x1="12" x2="288" y1="186" y2="186"/>
+<rect class="stripe" x="12" y="186" width="276" height="16"/>
+<text x="16" y="197" class="mono">5</text><text x="40" y="197" class="mono">short blue keyboard</text><text x="256" y="197" class="mono muted">✕</text>
+<line class="rule" x1="12" x2="288" y1="202" y2="202"/>
+<text x="16" y="213" class="mono">6</text><text x="40" y="213" class="mono">long black desk</text><text x="256" y="213" class="mono muted">✕</text>
+<line class="rule" x1="12" x2="288" y1="218" y2="218"/>
+<text x="16" y="238" class="muted">… 994 more</text>
+</g></svg>
+<figcaption>The same page on a dark ground. The roles resolve to their dark twins — accent, muted surface, danger tint, border — and no hex is named anywhere.</figcaption>
+</figure>
+</div>
+<script type="application/json" data-kind="paths" data-of="main">
+{
+  "arrive":  {"states": ["loading", "empty"]},
+  "create":  {"states": ["empty", "populated"], "accepts": ["accept-run", "accept-labels", "accept-ids"]},
+  "create_lots": {"states": ["empty", "populated"], "accepts": ["accept-runlots"]},
+  "append":  {"states": ["populated", "populated"], "accepts": ["accept-add", "accept-ids"]},
+  "update":  {"states": ["populated", "populated"], "accepts": ["accept-update"]},
+  "select":  {"states": ["populated", "populated"], "accepts": ["accept-select"]},
+  "swap":    {"states": ["populated", "populated"], "accepts": ["accept-swap", "accept-swap-short"]},
+  "remove":  {"states": ["populated", "populated"], "accepts": ["accept-remove"]},
+  "clear":   {"states": ["populated", "empty"], "accepts": ["accept-clear"]},
+  "night":   {"states": ["populated", "populated-dark"]}
+}
+</script>
+</section>
+
+<h2 id="flows">Flows</h2>
+
+<p>Every flow is the same shape: a click on one of the benchmark's own elements
+reaches the <code>bench</code> fold with the row's id and the element's DOM id,
+the fold returns an array of puts, patches and deletes, the store applies them,
+and the two regions redraw what changed. What differs is what the fold states,
+and against which table.</p>
+
+<section id="run" data-kind="flow" data-of="main">
+<h3>run — Create 1,000 rows</h3>
+<div class="mermaid">
+graph LR
+  A["click the button whose id is run"] --> B["the fold states every row it can see absent"]
+  B --> C["and a thousand fresh rows present, ids from next_id"]
+  C --> D["one array: the absences and the arrivals together"]
+  D --> E["Row replaced, Bench.next_id advanced by 1000"]
+</div>
+</section>
+
+<section id="runlots" data-kind="flow" data-of="main">
+<h3>runlots — Create 10,000 rows</h3>
+<div class="mermaid">
+graph LR
+  A["click the button whose id is runlots"] --> B["the same fold as run, ten thousand arrivals"]
+  B --> C["Row replaced, Bench.next_id advanced by 10000"]
+</div>
+</section>
+
+<section id="add" data-kind="flow" data-of="main">
+<h3>add — Append 1,000 rows</h3>
+<div class="mermaid">
+graph LR
+  A["click the button whose id is add"] --> B["a thousand puts, ids and ord from next_id"]
+  B --> C["every new row sorts above every row that exists"]
+  C --> D["Bench.next_id advanced by 1000; nothing above them disturbed"]
+</div>
+</section>
+
+<section id="update" data-kind="flow" data-of="main">
+<h3>update — Update every 10th row</h3>
+<div class="mermaid">
+graph LR
+  A["click the button whose id is update"] --> B["the rows sorted by ord, as the table draws them"]
+  B --> C["a patch per row at positions 0, 10, 20 and so on"]
+  C --> D["label becomes label plus a space and three bangs"]
+</div>
+</section>
+
+<section id="swaprows" data-kind="flow" data-of="main">
+<h3>swaprows — Swap Rows</h3>
+<div class="mermaid">
+graph LR
+  A["click the button whose id is swaprows"] --> B{"999 rows or more"}
+  B -- no --> N["nothing written"]
+  B -- yes --> C["the rows at positions 1 and 998, by ord"]
+  C --> D["two patches: each takes the other's ord"]
+  D --> E["the table redraws them in each other's place, ids travelling with them"]
+</div>
+</section>
+
+<section id="select" data-kind="flow" data-of="main">
+<h3>select — click a row's label</h3>
+<div class="mermaid">
+graph LR
+  A["click the lbl link; the event carries the row's id"] --> B{"already picked"}
+  B -- yes --> N["nothing written"]
+  B -- no --> C{"Bench.picked names a row"}
+  C -- yes --> D["patch that row: cls to the empty string"]
+  C -- no --> E["patch this row: cls to danger"]
+  D --> E
+  E --> F["Bench.picked takes this id"]
+</div>
+</section>
+
+<section id="clear" data-kind="flow" data-of="main">
+<h3>clear — Clear</h3>
+<div class="mermaid">
+graph LR
+  A["click the button whose id is clear"] --> B["a delete per row the fold can see"]
+  B --> C["Bench.picked let go"]
+  C --> D["the table is empty; the next Append does not repeat an id"]
+</div>
+</section>
+
+<section id="remove" data-kind="flow" data-of="main">
+<h3>remove — click a row's ✕</h3>
+<div class="mermaid">
+graph LR
+  A["click the remove link; its id is rm- and the row's id"] --> B["one delete, the row named in the DOM id"]
+  B --> C["the row is gone in one frame: no exit keyframe plays"]
+</div>
+</section>
+
+<h2 id="invariants">Invariants</h2>
+
+<p>The program declares no test objects, and this document carries no test
+pairs, because the operations are a function of the rows and the loop grades
+the fold directly: the <code>ops</code> check under the <code>test</code> verb
+runs <code>tests/ops.ts</code>, which loads <code>bench.js</code>, clicks each
+control by its DOM id against a given table, applies the returned writes and
+asserts what follows. No browser, no cluster, milliseconds. What it holds the
+fold to is below; each line is one of the acceptance list's promises restated
+over the fold's output, with <code>input</code> the rows and bench row given
+and <code>output</code> the writes returned.</p>
+
+<p class="invariant"><strong>Counts.</strong> Append from nothing gives
+<code class="cel">output.rows.size() == 1000</code>; Create-1,000 over a
+thousand rows states <code class="cel">output.deletes.size() == 1000</code>
+and leaves a thousand, none of them a row that was there
+(<code class="cel">output.rows.all(r, int(r.id) &gt; input.bench.next_id - 1)</code>);
+Create-10,000 leaves ten thousand; Create over an empty table states no
+absence at all; Clear states every row absent and
+<code class="cel">output.bench.picked == ''</code>.</p>
+
+<p class="invariant"><strong>Ids and order.</strong> Ids climb from the bench
+counter and the counter advances past what it handed out:
+<code class="cel">output.bench.next_id == input.bench.next_id + 1000</code>.
+<code>ord</code> is dense and starts where the ids start, and an appended row
+sorts above every row that existed — which is what lets a later Create's
+absences and arrivals be one array.</p>
+
+<p class="invariant"><strong>Labels.</strong> Every label is three words, and
+consecutive labels differ in all three
+(<a href="#decision-02">decision-02</a>).</p>
+
+<p class="invariant"><strong>Update.</strong> Exactly a hundred of a thousand
+rows gain the suffix, and they are the rows at positions 0, 10, 20 … by
+<code>ord</code>:
+<code class="cel">output.patched.all(p, p.pos % 10 == 0) &amp;&amp; output.patched.size() == 100</code>.</p>
+
+<p class="invariant"><strong>Swap.</strong> Positions 1 and 998 exchange and
+every other position holds; the swap is exactly two row writes
+(<code class="cel">output.rowWrites.size() == 2</code>); a table of 998 rows or
+fewer writes nothing.</p>
+
+<p class="invariant"><strong>Select.</strong> With nothing picked, selecting is
+the row and the note (<code class="cel">output.size() == 2</code>) and the row
+gains <code>danger</code>; selecting another is three writes, one row gaining
+the class and one losing it, whatever the table's length; selecting the row
+already picked writes nothing.</p>
+
+<p class="invariant"><strong>Remove.</strong> The row's ✕ drops exactly the row
+its DOM id names (<code class="cel">output.size() == 1 &amp;&amp; output[0].op == 'delete'</code>),
+leaves the rest standing, and selects nothing.</p>
+
+<h2 id="decisions">Decisions</h2>
+
+<p id="decision-01" data-kind="decision"><strong>The benchmark is the oracle,
+and it is reproduced rather than interpreted.</strong> Element ids
+(<code>run</code>, <code>runlots</code>, <code>add</code>, <code>update</code>,
+<code>clear</code>, <code>swaprows</code>), class names
+(<code>test-data</code>, <code>lbl</code>, <code>remove</code>,
+<code>danger</code>), the four-cell row and the button captions are the
+published implementation's. A nicer arrangement of them would cost the app the
+only thing it is for: being recognisable to anyone who has read any other
+implementation of the same benchmark.</p>
+
+<p id="decision-02" data-kind="decision"><strong>Labels are a walk through the
+lattice, not a sample from it.</strong> The reference implementation draws each
+of the three words with <code>Math.random</code>, which a compartment does not
+have. Each index here advances by its own stride — one, seven and five, each
+coprime to the list it walks — so consecutive labels differ in all three words
+and the walk is 3,575 long before it returns to its start. It yields 3,250
+distinct labels rather than 3,575, because the colour list holds "brown" twice;
+that repetition is the benchmark's and is kept. The output has the shape of a
+sample and the app replays, which is worth more here than sampling was.</p>
+
+<p id="decision-03" data-kind="decision"><strong>A click carries ids, so the
+buttons wear them.</strong> A handler event is the row's id and the element's
+own DOM id, with no payload. Selecting a row needs only the first. The two
+buttons that also speak to the reduce carry <code>id="run"</code> and
+<code>id="runlots"</code> and are told apart by the second — which is what those
+attributes are for in the benchmark anyway.</p>
+
+<p id="decision-04" data-kind="decision"><strong>Position is a column, and a
+swap exchanges it.</strong> A region draws its rows in the order a column names,
+so the table carries <code>ord</code> and Swap Rows gives two rows each other's
+value. The observable move is the array swap every other implementation
+performs — the rows at positions 1 and 998 change places and their ids travel
+with them — and it costs two writes rather than a thousand.</p>
+
+<p id="decision-05" data-kind="decision"><strong>Removing is the fold's, not a
+form's.</strong> A reduce states three things about a row — that it is this,
+that these fields of it become that, or that its key has no row — so every one
+of this benchmark's nine operations is one fold, and none of them needs a form.
+Clear states the absence of every row it can see. The row's ✕ states the absence
+of one, and carries which in its own DOM id, because the label beside it carries
+the same row and a click says nothing else about which was hit. Create-1,000 and
+Create-10,000 state both halves at once, the absences and the thousand arrivals
+in one array, so no counter has to keep a refill clear of its own deletion. The
+control region is what the benchmark's is, six buttons and no form, and the
+table's only other element is the label.</p>
+
+<p>What that is worth here is not tidiness. A form per row is the most expensive
+element a long list can carry in Chromium (see below), so the row's ✕ ceasing to
+be a form is what takes Create-10,000 from 1097ms to 369ms and clearing ten
+thousand from 646ms to 257ms.</p>
+
+<p><strong>Which row is selected is a column too.</strong> Clearing the last
+selection means finding the row that wears the class, and reading it off the
+table is a walk of every row to answer a click on one. The bench row carries the
+id instead, so selecting is two row writes and a note of which, whatever the
+table's length.</p>
+
+<p id="decision-06" data-kind="decision"><strong>The selected row's class is a
+column.</strong> A template binds a field and cannot compose one, so
+<code>cls</code> holds the literal word <code>danger</code> and the row binds
+<code>class="{cls}"</code>. Selecting writes at most two rows — the one that
+gains the class and the one that loses it — because restating the other nine
+hundred and ninety-eight would be a thousand mutations saying nothing.</p>
+
+
+<p id="decision-07" data-kind="decision"><strong>A row arrives and leaves at
+once.</strong> The preset gives every list an enter and an exit keyframe, and a
+row on its way out stays in the list until its exit has played. The benchmark's
+rows play nothing, and its oracle times a removal to the row being gone, so the
+screen rebinds both slots to no animation — the binding the preset declares
+rebindable for exactly this. Removing a row is then the fold, the store and one
+frame, which is what the reference measures too.</p>
+
+<p id="decision-08" data-kind="decision"><strong>Escape hatches: none.</strong>
+No container, no WASM unit, no vendored component, no external endpoint:
+<code>hatches</code> and <code>vendored</code> are empty and <code>blobs</code>
+is false, so the program's cluster unification and the emitted bayt.cue
+redeclaration carry no changes. The one piece of app code is the bench fold, a
+compartment the terminal already runs for any handler. The point of this app is
+to measure the terminal's write contract, and a benchmark that reached outside
+the terminal would be measuring something else.</p>
+
+<h2 id="measures">What the benchmark measures</h2>
+
+<p>Against the React reference in <code>bench/react</code> — the canonical keyed
+implementation, rows in an array and React reconciling — in the same browser
+through the same driver (<code>bench/h2h.ts</code>), timed from the click to the
+last change under the table, median of seven fresh-page runs.</p>
+
+<table class="timings">
+<thead><tr><th>operation</th><th>pronto</th><th>react</th></tr></thead>
+<tbody>
+<tr><td>create 1,000</td><td>35 ms</td><td>64 ms</td></tr>
+<tr><td>replace all 1,000</td><td>46 ms</td><td>43 ms</td></tr>
+<tr><td>update every 10th</td><td>7 ms</td><td>38 ms</td></tr>
+<tr><td>select a row</td><td>3 ms</td><td>34 ms</td></tr>
+<tr><td>swap rows</td><td>6 ms</td><td>48 ms</td></tr>
+<tr><td>remove a row</td><td>4 ms</td><td>35 ms</td></tr>
+<tr><td>create 10,000</td><td>282 ms</td><td>504 ms</td></tr>
+<tr><td>append 1,000 to 1,000</td><td>35 ms</td><td>56 ms</td></tr>
+<tr><td>clear 1,000</td><td>12 ms</td><td>7 ms</td></tr>
+<tr><td>clear 10,000</td><td>126 ms</td><td>57 ms</td></tr>
+</tbody>
+</table>
+
+<p>Replacing a thousand rows is even: a thousand leave one at a time around a
+thousand arriving, and the reference reconciles the same. The two clears are
+lost to the data plane, and both losses are the same shape. The collection under a tab table keeps its keys in a sorted array and
+splices per row, so a fold stating ten thousand absences in key order moves
+half the array per row — forty milliseconds, and quadratic in the table. And a
+local tier's write still builds a transaction, a mutation object and a UUID
+per row, for a collection with nothing to be optimistic against — thirty-three
+more. Both live in the vendored engine, below anything this terminal decides,
+and are recorded on the client's upgrade note. Taking a thousand rendered rows
+out of Chromium's layout tree is the other three and a half milliseconds, and
+React pays that too.</p>
+
+<h2>What the numbers rest on</h2>
+
+<p><strong>A whole-table read gets no view.</strong> The collection is that
+set already, and the snapshot is sorted at read. A maintained view over it
+keeps the order by moving array elements — its sorted map and its top-k
+operator both <code>splice</code> per row — so a bulk write is quadratic in
+the table: 197 ms of clearing ten thousand rows, on top of the collection's
+own. The region still hears which rows moved: the snapshot subscription
+carries the delta.</p>
+
+<p><strong>A node is wired once, when it arrives.</strong> Its listeners
+outlive every later refresh, so a write to a list of ten thousand rows wires
+the arrivals and walks nothing else. Wiring every standing row on every write
+is what made appending a thousand rows cost the two thousand on screen.
+<code>plugins/omnishell/test/bind-scale.test.ts</code> holds the count.</p>
+
+<p><strong>A wake is a posted message, not a zero-delay timer.</strong> The
+browser clamps a repeated timer to four milliseconds, and a region wakes once
+per write, so every write past the first few paid the clamp.</p>
+
+<p><strong>Two things the measurement itself taught.</strong> A subscription in
+the engine is told only of keys it has seen, so one opened after a seeded row
+exists never hears that row's delete; the store opens every subscription with
+initial state declared off, which the engine takes as every key already seen.
+And on this machine an idle renderer thread lands on an
+efficiency core, where the same work takes three times as long, so the driver
+warms the thread before each click, for both sides.</p>
+
+<p><strong>Only a change of growth rate earns a mechanism.</strong> Every
+operation here can be made faster than React — compiling the item template
+into a binding plan, feeding a tab collection through the sync side, and
+flushing a wake at the end of the write that raised it do it, create-10,000 by
+six times. Each is a constant factor bought with a mechanism of its own, and
+the first two carry an invariant a test DOM breaks. The terminal keeps what
+alters how cost grows with the table and leaves the constants to the engine
+upgrade; the two clears above are the price, and it is stated.</p>
+
+<p><strong>What a form per row costs, and why there is none here.</strong>
+Touching a <code>&lt;form&gt;</code> from JavaScript — any element API on it:
+<code>getAttribute</code>, <code>matches</code>, <code>classList</code>,
+<code>dataset</code>, <code>closest</code>, <code>addEventListener</code> —
+makes every subsequent DOM insertion anywhere in that document cost time
+proportional to the number of forms so touched. Ten thousand touched forms cost
+48us an insertion; ten thousand untouched ones, or ten thousand touched
+<code>&lt;div&gt;</code>, <code>&lt;fieldset&gt;</code> or
+<code>&lt;section&gt;</code> elements, cost nothing. It scales with the count:
+3us at a thousand, 21us at five thousand, 49us at ten. Firefox and WebKit charge
+nothing at all, so it is Chromium's and not the platform's;
+<code>repro/form-insertion-cost.html</code> is the finding without the terminal
+in it. A terminal cannot avoid the touch: binding a region asks every element
+what it declares. That is what the reduce learning to delete (decision-05)
+bought: with the row's ✕ no longer a form, the list stopped being quadratic in
+its own length.</p>
+
+<p>The benchmark's own timings are not collected by the page. Timing an
+operation needs a driver outside it, because a reduce has no clock to read one
+with.</p>
+
+</body>
+</html>

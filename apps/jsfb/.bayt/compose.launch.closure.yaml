@@ -1,0 +1,12 @@
+# generated from bayt.cue — do not edit
+include:
+- path: ../../../apps/jsfb/.bayt/compose.launch.yaml
+  required: false
+- path: ../../../apps/jsfb/.bayt/compose.caddy.yaml
+  required: false
+services:
+  bayt:
+    extends:
+      file: ./compose.launch.yaml
+      service: apps_jsfb-launch
+    scale: 1

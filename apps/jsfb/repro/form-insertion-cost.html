@@ -1,0 +1,52 @@
+<!doctype html>
+<!--
+  A touched <form> taxes every later DOM insertion in its document.
+
+  ?tag=form&n=10000&touch=1 builds n rows, each holding one <tag> element,
+  touches each with one ordinary element API, and then times appending 3,000
+  fresh divs to a DETACHED parent — work that has nothing to do with the rows.
+
+  Chromium 147: with <form> those appends cost time proportional to the number
+  of forms touched; with <div>, <fieldset> or <section>, or with the forms left
+  untouched, they cost nothing. Any element API does it — getAttribute, matches,
+  classList, dataset, closest, addEventListener — while writing an IDL attribute
+  (noValidate) and getComputedStyle do not. The tax also survives removing the
+  forms from the document, which is why each case wants its own load.
+
+  It matters because a list that binds its rows touches every element in them,
+  so a form per row makes rendering, appending and clearing the list quadratic
+  in its length.
+-->
+<meta charset="utf-8">
+<title>A touched form taxes every insertion</title>
+<body>
+<table></table>
+<pre id="out"></pre>
+<script>
+const q = new URLSearchParams(location.search);
+const tag = q.get("tag") ?? "form";
+const n = Number(q.get("n") ?? 10000);
+const touch = q.get("touch") === "1";
+
+const table = document.querySelector("table");
+const els = [];
+for (let i = 0; i < n; i++) {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td><${tag} data-action="delete"><button type="submit"></button></${tag}></td>`;
+  table.append(tr);
+  els.push(tr.querySelector(tag));
+}
+if (touch) for (const el of els) el.getAttribute("data-action");
+
+// The timed work: 3,000 appends into a parent that is not in the document.
+const made = [];
+for (let i = 0; i < 3000; i++) made.push(document.createElement("div"));
+const detached = document.createElement("div");
+const t0 = performance.now();
+for (const d of made) detached.appendChild(d);
+const us = (performance.now() - t0) * 1000 / 3000;
+
+document.getElementById("out").textContent =
+  `${n} <${tag}>, ${touch ? "touched" : "untouched"}: ${us.toFixed(1)} us per detached appendChild`;
+document.title = "done";
+</script>

@@ -1,0 +1,47 @@
+{
+  "0xc75ee275aaa2d971": {
+    "name": "row",
+    "fields": {
+      "1": {
+        "name": "id",
+        "type": "text",
+        "retired": false
+      },
+      "2": {
+        "name": "label",
+        "type": "text",
+        "retired": false
+      },
+      "3": {
+        "name": "ord",
+        "type": "int",
+        "retired": false
+      },
+      "4": {
+        "name": "cls",
+        "type": "text",
+        "retired": false
+      }
+    }
+  },
+  "0xfd0708091405b292": {
+    "name": "bench",
+    "fields": {
+      "1": {
+        "name": "id",
+        "type": "text",
+        "retired": false
+      },
+      "2": {
+        "name": "next_id",
+        "type": "int",
+        "retired": false
+      },
+      "3": {
+        "name": "picked",
+        "type": "text",
+        "retired": false
+      }
+    }
+  }
+}

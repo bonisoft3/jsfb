@@ -1,0 +1,41 @@
+# generated from bayt.cue — do not edit
+services:
+  apps_jsfb-launch:
+    build:
+      additional_contexts:
+        apps_jsfb-caddy: service:apps_jsfb-caddy
+      context: ..
+      dockerfile: .bayt/Dockerfile.launch
+      target: launch
+      args:
+        BUILDKIT_SYNTAX: >-
+          docker/dockerfile:1.26@sha256:ecfaec9ed6d810b56388c508f4121597bfbba70d41a6dfeee4d8cad5f295fc32
+    depends_on:
+      apps_jsfb-caddy:
+        condition: service_healthy
+        restart: true
+    healthcheck:
+      test:
+      - CMD
+      - echo
+      - jsfb is healthy
+      interval: 5s
+      timeout: 2s
+      retries: 3
+    image: bayt-apps_jsfb-launch:${BAYT_IMAGE_TAG:-latest}
+    networks:
+      default:
+        aliases:
+        - launch
+  apps_jsfb-launch_bayt:
+    build:
+      additional_contexts:
+        apps_jsfb-caddy_bayt: service:apps_jsfb-caddy_bayt
+      context: ..
+      dockerfile: .bayt/Dockerfile.launch
+      target: launch_bayt
+      args:
+        BUILDKIT_SYNTAX: >-
+          docker/dockerfile:1.26@sha256:ecfaec9ed6d810b56388c508f4121597bfbba70d41a6dfeee4d8cad5f295fc32
+    image: bayt-apps_jsfb-launch_bayt:latest
+    scale: 0

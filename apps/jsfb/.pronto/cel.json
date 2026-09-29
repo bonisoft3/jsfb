@@ -1,0 +1,8 @@
+{
+  "this >= 0": {"expr":{"callExpr":{"function":"_>=_","args":[{"identExpr":{"name":"this"}},{"constExpr":{"int64Value":"0"}}]}}},
+  "this >= 1": {"expr":{"callExpr":{"function":"_>=_","args":[{"identExpr":{"name":"this"}},{"constExpr":{"int64Value":"1"}}]}}},
+  "this in ['', 'danger']": {"expr":{"callExpr":{"function":"@in","args":[{"identExpr":{"name":"this"}},{"listExpr":{"elements":[{"constExpr":{"stringValue":""}},{"constExpr":{"stringValue":"danger"}}]}}]}}},
+  "this.size() <= 12": {"expr":{"callExpr":{"function":"_<=_","args":[{"callExpr":{"target":{"identExpr":{"name":"this"}},"function":"size"}},{"constExpr":{"int64Value":"12"}}]}}},
+  "this.size() <= 8": {"expr":{"callExpr":{"function":"_<=_","args":[{"callExpr":{"target":{"identExpr":{"name":"this"}},"function":"size"}},{"constExpr":{"int64Value":"8"}}]}}},
+  "this.size() >= 3 && this.size() <= 60": {"expr":{"callExpr":{"function":"_&&_","args":[{"callExpr":{"function":"_>=_","args":[{"callExpr":{"target":{"identExpr":{"name":"this"}},"function":"size"}},{"constExpr":{"int64Value":"3"}}]}},{"callExpr":{"function":"_<=_","args":[{"callExpr":{"target":{"identExpr":{"name":"this"}},"function":"size"}},{"constExpr":{"int64Value":"60"}}]}}]}}}
+}

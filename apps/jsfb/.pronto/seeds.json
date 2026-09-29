@@ -1,0 +1,39 @@
+{
+  "row": [
+    {
+      "id": "row_0001",
+      "label": "seed_label_1",
+      "ord": 10,
+      "cls": ""
+    },
+    {
+      "id": "row_0002",
+      "label": "seed_label_2",
+      "ord": 20,
+      "cls": "danger"
+    },
+    {
+      "id": "row_0003",
+      "label": "seed_label_3",
+      "ord": 30,
+      "cls": ""
+    }
+  ],
+  "bench": [
+    {
+      "id": "bench_0001",
+      "next_id": "seed_next_id_1",
+      "picked": "seed_picked_1"
+    },
+    {
+      "id": "bench_0002",
+      "next_id": "seed_next_id_2",
+      "picked": "seed_picked_2"
+    },
+    {
+      "id": "bench_0003",
+      "next_id": "seed_next_id_3",
+      "picked": "seed_picked_3"
+    }
+  ]
+}

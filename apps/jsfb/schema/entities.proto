@@ -1,0 +1,19 @@
+syntax = "proto3";
+package pronto.entities;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
+
+message Bench {
+  optional string id = 1 [json_name = "id"];
+  optional int32 next_id = 2 [json_name = "next_id"];
+  optional string picked = 3 [json_name = "picked"];
+}
+
+message Row {
+  optional string id = 1 [json_name = "id"];
+  optional string label = 2 [json_name = "label"];
+  optional int32 ord = 3 [json_name = "ord"];
+  optional string cls = 4 [json_name = "cls"];
+}

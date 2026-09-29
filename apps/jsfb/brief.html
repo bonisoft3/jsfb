@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>js-framework-benchmark — brief</title>
+<style>body{max-width:44rem;margin:2rem auto;padding:0 1rem;font:15px/1.6 -apple-system,"Segoe UI",sans-serif}</style>
+</head>
+<body>
+<h1>js-framework-benchmark</h1>
+
+Nine row operations over one table, and nothing else. The benchmark is the
+oracle: its operations, counts and markup are published, so an implementation is
+either faithful or wrong, with nothing to argue about.
+
+- **Create 1,000 rows** — replace the table with a thousand
+- **Create 10,000 rows** — replace it with ten thousand
+- **Append 1,000 rows** — add a thousand to the end
+- **Update every 10th row** — append `&quot; !!!&quot;` to rows 0, 10, 20, …
+- **Clear** — remove every row
+- **Swap Rows** — exchange the rows at positions 1 and 998
+- **Select a row** — clicking its label highlights it, and only it
+- **Remove a row** — clicking its ✕ removes that row
+
+A row is an id, a label of three words, and whether it is selected. Labels are
+one adjective, one colour and one noun.
+
+This app exists to show what each of those operations looks like in this
+terminal: which are forms, which are folds, and which cannot be a fold at all.
+
+</body>
+</html>
